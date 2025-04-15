@@ -4,21 +4,32 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# =============================================
+# CONFIGURACIÓN HÍBRIDA (Local + Render)
+# =============================================
 app = Flask(__name__)
 
-# =============================================
-# CONFIGURACIÓN PARA RENDER (POSTGRESQL + HTTPS)
-# =============================================
+# Configuración de la base de datos (auto-adaptable)
+def get_database_uri():
+    if 'RENDER' in os.environ:  # Detecta si está en Render
+        db_url = os.environ.get('DATABASE_URL')
+        return db_url.replace('postgres://', 'postgresql://') + '?sslmode=require'
+    return 'sqlite:///app.db'  # Usa SQLite localmente
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://torejita_db_user:3nxFuLCkuKsTMvHxXcfFWsbQDqrkuzhe@dpg-cvuuh8adbo4c73f91ifg-a/torejita_db?sslmode=require'
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,    # Soluciona desconexiones en Render
+    'pool_recycle': 300       # Recicla conexiones cada 5 minutos
+}
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 db = SQLAlchemy(app)
 
 # ===================
-# MODELOS DE DATABASE
+# MODELOS (Se mantienen igual)
 # ===================
 class Teacher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -32,103 +43,71 @@ class Student(db.Model):
     lng = db.Column(db.Float)
 
 # ============================
-# MIDDLEWARE PARA HTTPS EN RENDER
+# MIDDLEWARE MEJORADO
 # ============================
 @app.before_request
-def enforce_https():
-    if not request.is_secure and 'render.com' in request.host:
-        return redirect(request.url.replace('http://', 'https://'), 301)
+def before_request():
+    # Redirección HTTPS solo en producción
+    if 'RENDER' in os.environ and not request.is_secure:
+        return redirect(request.url.replace('http://', 'https://'), 301
+    
+    # Inicialización de la base de datos para Render
+    if 'RENDER' in os.environ and not hasattr(app, 'db_initialized'):
+        with app.app_context():
+            db.create_all()
+            app.db_initialized = True
 
-# ==============
-# RUTAS PRINCIPALES
-# ==============
+# ======================
+# RUTAS (Se mantienen igual)
+# ======================
 @app.route('/')
 def home():
     return render_template('login.html')
 
 @app.route('/teacher_login', methods=['POST'])
 def teacher_login():
-    username = request.form.get('username')
-    password = request.form.get('password')
-    
-    teacher = Teacher.query.filter_by(username=username).first()
-    if teacher and check_password_hash(teacher.password, password):
-        session['user_type'] = 'teacher'
-        return redirect(url_for('teacher_dashboard'))
-    return "Credenciales incorrectas", 401
+    # ... (tu código existente sin cambios)
 
 @app.route('/student_login', methods=['POST'])
 def student_login():
-    name = request.form.get('student_name')
-    if name:
-        student = Student(name=name, lat=None, lng=None)
-        db.session.add(student)
-        db.session.commit()
-        
-        session['user_type'] = 'student'
-        session['student_name'] = name
-        return redirect(url_for('student_dashboard'))
-    return "Nombre inválido", 400
+    # ... (tu código existente sin cambios)
 
-# ======================
-# API PARA UBICACIONES (REEMPLAZA WEBSOCKETS)
-# ======================
 @app.route('/update_location', methods=['POST'])
 def update_location():
-    if session.get('user_type') != 'student':
-        return "No autorizado", 403
-    
-    student = Student.query.filter_by(name=session['student_name']).first()
-    if student:
-        student.lat = request.json.get('lat')
-        student.lng = request.json.get('lng')
-        db.session.commit()
-        return "Ubicación actualizada", 200
-    return "Estudiante no encontrado", 404
+    # ... (tu código existente sin cambios)
 
 @app.route('/get_locations')
 def get_locations():
-    if session.get('user_type') != 'teacher':
-        return "No autorizado", 403
-    
-    locations = {s.name: {'lat': s.lat, 'lng': s.lng} 
-                for s in Student.query.all()}
-    return jsonify(locations)
+    # ... (tu código existente sin cambios)
 
-# ======================
-# DASHBOARDS
-# ======================
 @app.route('/teacher_dashboard')
 def teacher_dashboard():
-    if session.get('user_type') != 'teacher':
-        return redirect(url_for('home'))
-    return render_template('teacher_dashboard.html')
+    # ... (tu código existente sin cambios)
 
 @app.route('/student_dashboard')
 def student_dashboard():
-    if session.get('user_type') != 'student':
-        return redirect(url_for('home'))
-    return render_template('student_dashboard.html')
+    # ... (tu código existente sin cambios)
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('home'))
+    # ... (tu código existente sin cambios)
 
 # ======================
-# INICIALIZACIÓN
+# INICIALIZACIÓN MEJORADA
 # ======================
-with app.app_context():
-    db.create_all()
-    # Crear usuario docente demo (eliminar en producción)
-    if not Teacher.query.first():
-        demo_teacher = Teacher(
-            username="profesor",
-            password=generate_password_hash("password")
-        )
-        db.session.add(demo_teacher)
-        db.session.commit()
+def initialize_database():
+    with app.app_context():
+        db.create_all()
+        if not Teacher.query.first():
+            demo_teacher = Teacher(
+                username="profesor",
+                password=generate_password_hash("password")
+            )
+            db.session.add(demo_teacher)
+            db.session.commit()
 
+# Solo inicializa localmente (Render usa PRE_START_COMMAND)
 if __name__ == '__main__':
+    initialize_database()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
