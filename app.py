@@ -29,7 +29,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 db = SQLAlchemy(app)
 
 # ===================
-# MODELOS (Se mantienen igual)
+# MODELOS
 # ===================
 class Teacher(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,7 +43,7 @@ class Student(db.Model):
     lng = db.Column(db.Float)
 
 # ============================
-# MIDDLEWARE MEJORADO
+# MIDDLEWARE
 # ============================
 @app.before_request
 def before_request():
@@ -58,7 +58,7 @@ def before_request():
             app.db_initialized = True
 
 # ======================
-# RUTAS (Se mantienen igual)
+# RUTAS
 # ======================
 @app.route('/')
 def home():
@@ -66,34 +66,59 @@ def home():
 
 @app.route('/teacher_login', methods=['POST'])
 def teacher_login():
-    # ... (tu código existente sin cambios)
+    username = request.form.get('username')
+    password = request.form.get('password')
+    teacher = Teacher.query.filter_by(username=username).first()
+    if teacher and check_password_hash(teacher.password, password):
+        session['user'] = teacher.username
+        return redirect(url_for('teacher_dashboard'))
+    return render_template('login.html', error="Usuario o contraseña incorrectos")
 
 @app.route('/student_login', methods=['POST'])
 def student_login():
-    # ... (tu código existente sin cambios)
+    student_name = request.form.get('name')
+    student = Student.query.filter_by(name=student_name).first()
+    if student:
+        session['student'] = student.name
+        return redirect(url_for('student_dashboard'))
+    return render_template('login.html', error="Estudiante no encontrado")
 
 @app.route('/update_location', methods=['POST'])
 def update_location():
-    # ... (tu código existente sin cambios)
+    student_name = session.get('student')
+    if not student_name:
+        return jsonify({'error': 'No student logged in'}), 403
+    lat = request.json.get('lat')
+    lng = request.json.get('lng')
+    student = Student.query.filter_by(name=student_name).first()
+    if student:
+        student.lat = lat
+        student.lng = lng
+        db.session.commit()
+        return jsonify({'success': True})
+    return jsonify({'error': 'Student not found'}), 404
 
 @app.route('/get_locations')
 def get_locations():
-    # ... (tu código existente sin cambios)
+    students = Student.query.all()
+    locations = [{'name': s.name, 'lat': s.lat, 'lng': s.lng} for s in students]
+    return jsonify(locations)
 
 @app.route('/teacher_dashboard')
 def teacher_dashboard():
-    # ... (tu código existente sin cambios)
+    return render_template('teacher_dashboard.html')
 
 @app.route('/student_dashboard')
 def student_dashboard():
-    # ... (tu código existente sin cambios)
+    return render_template('student_dashboard.html')
 
 @app.route('/logout')
 def logout():
-    # ... (tu código existente sin cambios)
+    session.clear()
+    return redirect(url_for('home'))
 
 # ======================
-# INICIALIZACIÓN MEJORADA
+# INICIALIZACIÓN
 # ======================
 def initialize_database():
     with app.app_context():
