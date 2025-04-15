@@ -39,6 +39,12 @@
             font-size: 1.1rem;
             font-weight: 400;
         }
+        #location-status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
@@ -46,35 +52,67 @@
         <h1>Bienvenido, {{ student_name }}</h1>
         <h2>Compartiendo tu ubicación en tiempo real...</h2>
         <p>Mantén esta página abierta para continuar compartiendo tu ubicación.</p>
+        
+        <div id="location-status">
+            <p>Estado: <span id="status-text">Enviando ubicación...</span></p>
+            <p>Última actualización: <span id="last-update">Nunca</span></p>
+        </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+
     <script>
-        const socket = io.connect('http://127.0.0.1:5000');
-        function updateLocation() {
+        // Función para enviar ubicación al servidor
+        function sendLocation(position) {
+            const data = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+            
+            fetch('/update_location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('status-text').textContent = "Ubicación enviada correctamente";
+                    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                } else {
+                    document.getElementById('status-text').textContent = "Error al enviar ubicación";
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('status-text').textContent = "Error de conexión";
+            });
+        }
+
+        // Obtener y enviar ubicación periódicamente
+        function startLocationSharing() {
             if (navigator.geolocation) {
-                navigator.geolocation.watchPosition(position => {
-                    const data = {
-                        student_name: "{{ student_name }}",
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
-                    };
-                    socket.emit('update_location', data);
-                });
+                // Enviar inmediatamente y luego cada 15 segundos
+                navigator.geolocation.watchPosition(
+                    position => {
+                        sendLocation(position);
+                    },
+                    error => {
+                        console.error("Error de geolocalización:", error);
+                        document.getElementById('status-text').textContent = "Error al obtener ubicación";
+                    },
+                    { 
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000 
+                    }
+                );
             } else {
                 alert("La geolocalización no está soportada por este navegador.");
             }
         }
-        updateLocation();
-    </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/static/service-worker.js')
-            .then(registration => {
-                console.log('Service Worker registrado:', registration);
-            }).catch(error => {
-                console.error('Error al registrar el Service Worker:', error);
-            });
-        }
+
+        // Iniciar cuando la página cargue
+        document.addEventListener('DOMContentLoaded', startLocationSharing);
     </script>
 </body>
 </html>

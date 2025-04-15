@@ -76,41 +76,107 @@
             text-align: center;
             font-weight: bold;
         }
+        #refresh-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+        }
+        #refresh-btn:hover {
+            background-color: #218838;
+        }
+        .no-students {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
+    <button id="refresh-btn" onclick="fetchLocations()">Actualizar</button>
     <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
 
     <div class="container">
         <h1>Panel de Docente</h1>
         <h2>Ubicaciones de Estudiantes</h2>
-        {% for student, location in locations.items() %}
-        <div class="student-card">
-            <strong>{{ student }}</strong>
-            <a href="https://www.google.com/maps?q={{ location.latitude }},{{ location.longitude }}" target="_blank" class="btn-map">
-                Ver ubicación en Google Maps
-            </a>
+        <div id="students-container">
+            <!-- Los estudiantes se cargarán aquí dinámicamente -->
+            <div class="no-students">Cargando ubicaciones...</div>
         </div>
-        {% endfor %}
     </div>
 
     <div class="footer" id="currentDate"></div>
 
     <script>
+        // Función para cargar las ubicaciones
+        async function fetchLocations() {
+            try {
+                const response = await fetch('/get_locations');
+                const data = await response.json();
+                
+                const container = document.getElementById('students-container');
+                
+                if (Object.keys(data).length === 0) {
+                    container.innerHTML = '<div class="no-students">No hay estudiantes activos</div>';
+                    return;
+                }
+
+                let html = '';
+                for (const [student, location] of Object.entries(data)) {
+                    if (location.lat && location.lng) {
+                        html += `
+                        <div class="student-card">
+                            <strong>${student}</strong>
+                            <a href="https://www.google.com/maps?q=${location.lat},${location.lng}" 
+                               target="_blank" 
+                               class="btn-map">
+                                Ver ubicación en Google Maps
+                            </a>
+                            <small>Última actualización: ${new Date().toLocaleTimeString()}</small>
+                        </div>`;
+                    }
+                }
+                
+                container.innerHTML = html || '<div class="no-students">No hay ubicaciones disponibles</div>';
+                
+            } catch (error) {
+                console.error('Error al cargar ubicaciones:', error);
+                document.getElementById('students-container').innerHTML = 
+                    '<div class="no-students">Error al cargar ubicaciones</div>';
+            }
+        }
+
+        // Actualizar automáticamente cada 10 segundos
+        function startAutoRefresh() {
+            fetchLocations();
+            setInterval(fetchLocations, 10000);
+        }
+
         function logout() {
             if (confirm("¿Seguro que quieres cerrar sesión?")) {
-                window.location.href = "/logout";  // Redirige al cierre de sesión en Flask
+                window.location.href = "/logout";
             }
         }
 
         function updateDate() {
             const now = new Date();
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            document.getElementById("currentDate").textContent = now.toLocaleDateString("es-ES", options) + " - " + now.toLocaleTimeString("es-ES");
+            document.getElementById("currentDate").textContent = 
+                now.toLocaleDateString("es-ES", options) + " - " + now.toLocaleTimeString("es-ES");
         }
 
-        updateDate();
-        setInterval(updateDate, 1000);  // Actualizar cada segundo
+        // Iniciar cuando la página cargue
+        document.addEventListener('DOMContentLoaded', () => {
+            updateDate();
+            setInterval(updateDate, 1000);
+            startAutoRefresh();
+        });
     </script>
 </body>
 </html>
