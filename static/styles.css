@@ -1,0 +1,130 @@
+/* Estilo general */
+body {
+    font-family: 'Open Sans', sans-serif;
+    background-color: #f0f2f5;
+    color: #444;
+    margin: 0;
+    padding: 0;
+}
+
+/* Contenedor principal */
+.container {
+    max-width: 960px;
+    margin: 50px auto;
+    padding: 25px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Encabezados */
+h1, h2 {
+    text-align: center;
+    color: #3b82f6; /* Azul fresco */
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+/* Formularios */
+form {
+    margin-top: 20px;
+}
+
+.form-control {
+    background-color: #f9fafb;
+    color: #333;
+    border: 1px solid #d1d5db;
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+
+/* Botones */
+button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(to right, #3b82f6, #2563eb); /* Azul vibrante */
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.4s ease;
+}
+
+button:hover {
+    background: linear-gradient(to right, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Lista de elementos */
+ul.list-group {
+    margin-top: 20px;
+    padding: 0;
+}
+
+ul.list-group li {
+    background: #f3f4f6;
+    color: #333;
+    padding: 12px 20px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+ul.list-group li:hover {
+    background: #e5e7eb; /* Color claro al pasar el ratón */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+a {
+    color: #2563eb;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+/* Alertas */
+.alert-container .alert {
+    background-color: #f87171; /* Rojo pastel */
+    color: #fff;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    h1, h2 {
+        font-size: 18px;
+    }
+
+    button {
+        font-size: 14px;
+    }
+}

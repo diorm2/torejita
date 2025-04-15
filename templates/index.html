@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ubicación en Tiempo Real</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.0/socket.io.js"></script>
+</head>
+<body class="container">
+    <h1 class="text-center my-4">Ubicación en Tiempo Real</h1>
+    <div id="location-status" class="text-center"></div>
+    <ul id="locations" class="list-group"></ul>
+
+    <script>
+        const socket = io.connect('http://127.0.0.1:5000');
+        const studentName = prompt("Ingresa tu nombre:");
+
+        // Función para obtener la ubicación en tiempo real
+        function updateLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(position => {
+                    const data = {
+                        student_name: studentName,
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    // Envía la ubicación al servidor
+                    socket.emit('update_location', data);
+                }, error => {
+                    document.getElementById('location-status').innerText = "Error al obtener la ubicación: " + error.message;
+                });
+            } else {
+                document.getElementById('location-status').innerText = "La geolocalización no está soportada por este navegador.";
+            }
+        }
+
+        // Escucha las actualizaciones de ubicación desde el servidor
+        socket.on('location_update', student_locations => {
+            // Limpia la lista antes de mostrar las ubicaciones actualizadas
+            const locationsList = document.getElementById('locations');
+            locationsList.innerHTML = '';
+            for (const student in student_locations) {
+                const location = student_locations[student];
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item';
+                listItem.innerHTML = `<strong>${student}:</strong> 
+                    <a href="https://www.google.com/maps?q=${location.latitude},${location.longitude}" target="_blank">
+                    Ver ubicación en Google Maps</a>`;
+                locationsList.appendChild(listItem);
+            }
+        });
+
+        // Inicia la actualización de ubicación
+        updateLocation();
+    </script>
+</body>
+</html>
