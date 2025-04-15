@@ -10,7 +10,7 @@ app = Flask(__name__)
 # CONFIGURACIÓN PARA RENDER (POSTGRESQL + HTTPS)
 # =============================================
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', '').replace('postgres://', 'postgresql://') + '?sslmode=require'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://torejita_db_user:3nxFuLCkuKsTMvHxXcfFWsbQDqrkuzhe@dpg-cvuuh8adbo4c73f91ifg-a/torejita_db?sslmode=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
