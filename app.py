@@ -11,18 +11,15 @@ app = Flask(__name__)
 
 # Configuración de la base de datos (auto-adaptable)
 def get_database_uri():
-    if 'RENDER' in os.environ:  # Detecta si está en Render
-        db_url = os.environ.get('DATABASE_URL')
+    db_url = os.environ.get('DATABASE_URL')
+    if db_url:
         return db_url.replace('postgres://', 'postgresql://') + '?sslmode=require'
-    return 'sqlite:///app.db'  # Usa SQLite localmente
+    print("ADVERTENCIA: DATABASE_URL no está configurada. Usando SQLite local.")
+    return 'sqlite:///app.db'
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-key-123')
 app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_pre_ping': True,    # Soluciona desconexiones en Render
-    'pool_recycle': 300       # Recicla conexiones cada 5 minutos
-}
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
@@ -47,15 +44,9 @@ class Student(db.Model):
 # ============================
 @app.before_request
 def before_request():
-    # Redirección HTTPS solo en producción
+    # Redirección HTTPS solo en Render
     if 'RENDER' in os.environ and not request.is_secure:
         return redirect(request.url.replace('http://', 'https://'), 301)
-    
-    # Inicialización de la base de datos para Render
-    if 'RENDER' in os.environ and not hasattr(app, 'db_initialized'):
-        with app.app_context():
-            db.create_all()
-            app.db_initialized = True
 
 # ======================
 # RUTAS
@@ -71,8 +62,15 @@ def teacher_login():
     teacher = Teacher.query.filter_by(username=username).first()
     if teacher and check_password_hash(teacher.password, password):
         session['user'] = teacher.username
+        print(f"Inicio de sesión exitoso para: {username}")
         return redirect(url_for('teacher_dashboard'))
     return render_template('login.html', error="Usuario o contraseña incorrectos")
+
+@app.route('/teacher_dashboard')
+def teacher_dashboard():
+    if 'user' not in session:
+        return redirect(url_for('home'))
+    return render_template('teacher_dashboard.html')
 
 @app.route('/student_login', methods=['POST'])
 def student_login():
@@ -80,36 +78,14 @@ def student_login():
     student = Student.query.filter_by(name=student_name).first()
     if student:
         session['student'] = student.name
+        print(f"Inicio de sesión exitoso para: {student_name}")
         return redirect(url_for('student_dashboard'))
     return render_template('login.html', error="Estudiante no encontrado")
 
-@app.route('/update_location', methods=['POST'])
-def update_location():
-    student_name = session.get('student')
-    if not student_name:
-        return jsonify({'error': 'No student logged in'}), 403
-    lat = request.json.get('lat')
-    lng = request.json.get('lng')
-    student = Student.query.filter_by(name=student_name).first()
-    if student:
-        student.lat = lat
-        student.lng = lng
-        db.session.commit()
-        return jsonify({'success': True})
-    return jsonify({'error': 'Student not found'}), 404
-
-@app.route('/get_locations')
-def get_locations():
-    students = Student.query.all()
-    locations = [{'name': s.name, 'lat': s.lat, 'lng': s.lng} for s in students]
-    return jsonify(locations)
-
-@app.route('/teacher_dashboard')
-def teacher_dashboard():
-    return render_template('teacher_dashboard.html')
-
 @app.route('/student_dashboard')
 def student_dashboard():
+    if 'student' not in session:
+        return redirect(url_for('home'))
     return render_template('student_dashboard.html')
 
 @app.route('/logout')
@@ -129,6 +105,15 @@ def initialize_database():
                 password=generate_password_hash("password")
             )
             db.session.add(demo_teacher)
+            db.session.commit()
+
+        if not Student.query.first():
+            demo_student = Student(
+                name="estudiante_demo",
+                lat=0.0,
+                lng=0.0
+            )
+            db.session.add(demo_student)
             db.session.commit()
 
 # Solo inicializa localmente (Render usa PRE_START_COMMAND)
