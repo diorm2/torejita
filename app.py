@@ -49,7 +49,7 @@ class Student(db.Model):
 def before_request():
     # Redirección HTTPS solo en producción
     if 'RENDER' in os.environ and not request.is_secure:
-        return redirect(request.url.replace('http://', 'https://'), 301
+        return redirect(request.url.replace('http://', 'https://'), 301)
     
     # Inicialización de la base de datos para Render
     if 'RENDER' in os.environ and not hasattr(app, 'db_initialized'):
